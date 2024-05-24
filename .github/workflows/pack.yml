@@ -1,0 +1,50 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: 'v18.20.0'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Archive production artifacts
+      run: |
+        zip -r archive.zip .
+        echo "::set-output name=timestamp::$(date +'%Y%m%d%H%M%S')"
+      id: archive
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.archive.outputs.timestamp }}
+        release_name: Release ${{ steps.archive.outputs.timestamp }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./archive.zip
+        asset_name: archive-${{ steps.archive.outputs.timestamp }}.zip
+        asset_content_type: application/zip
